@@ -3,10 +3,12 @@ import requests
 import hashlib
 import os
 import time
-from deep_translator import GoogleTranslator
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHANNEL_ID = "@FILCOMPUTERNEWS"
+
+# LibreTranslate سرور عمومی (رایگان)
+LT_URL = "https://libretranslate.de/translate"   # یا https://libretranslate.com اگر اولی کار نکرد
 
 RSS_FEEDS = [
     "https://www.tomshardware.com/feeds/rss2/all.xml",
@@ -14,35 +16,25 @@ RSS_FEEDS = [
     "https://www.theverge.com/rss/index.xml",
     "https://arstechnica.com/rss/",
     "https://techcrunch.com/feed/",
-    "https://www.anandtech.com/rss/",           # اضافه شد
+    "https://www.anandtech.com/rss/",
 ]
 
-def smart_translate(text, is_title=False):
-    if not text or len(text.strip()) < 10:
+def libre_translate(text):
+    if not text or len(text.strip()) < 5:
         return text
     try:
-        translator = GoogleTranslator(source='en', target='fa')
-        translated = translator.translate(text)
-        
-        # اصلاحات فارسی برای اخبار سخت‌افزار
-        corrections = {
-            "پردازنده": "CPU",
-            "کارت گرافیک": "GPU",
-            "لپ تاپ": "لپ‌تاپ",
-            "مادربرد": "مادربورد",
-            "رم": "RAM",
-            "اس اس دی": "SSD",
-            "هارد دیسک": "HDD",
-            "ویندوز": "Windows",
-            "لینوکس": "Linux",
-            "اینتل": "Intel",
-            "ای ام دی": "AMD",
-            "انویدیا": "NVIDIA",
+        payload = {
+            "q": text,
+            "source": "en",
+            "target": "fa",
+            "format": "text"
         }
-        for eng, fa in corrections.items():
-            translated = translated.replace(eng, fa)
-        
-        return translated
+        response = requests.post(LT_URL, json=payload, timeout=15)
+        if response.status_code == 200:
+            return response.json().get("translatedText", text)
+        else:
+            print("LibreTranslate Error:", response.text)
+            return text
     except:
         return text
 
@@ -54,16 +46,17 @@ if os.path.exists("seen_posts.txt"):
 
 for feed_url in RSS_FEEDS:
     feed = feedparser.parse(feed_url)
-    for entry in feed.entries[:6]:
+    for entry in feed.entries[:5]:   # حداکثر ۵ خبر از هر منبع
         post_id = hashlib.md5(entry.link.encode()).hexdigest()
         if post_id in seen:
             continue
 
         try:
-            title_fa = smart_translate(entry.title, is_title=True)
-            summary_en = entry.get('summary', entry.get('description', ''))[:500]
-            summary_fa = smart_translate(summary_en)
+            title_fa = libre_translate(entry.title)
+            summary_en = entry.get('summary', entry.get('description', ''))[:600]
+            summary_fa = libre_translate(summary_en)
 
+            # پیدا کردن عکس
             image = None
             if hasattr(entry, 'media_content') and entry.media_content:
                 image = entry.media_content[0]['url']
@@ -85,9 +78,9 @@ for feed_url in RSS_FEEDS:
             with open("seen_posts.txt", "a") as f:
                 f.write(post_id + "\n")
             
-            time.sleep(3)
+            time.sleep(4)
             
         except:
             continue
 
-print("✅ اخبار ارسال شد!")
+print("✅ اخبار با LibreTranslate ارسال شد!")
