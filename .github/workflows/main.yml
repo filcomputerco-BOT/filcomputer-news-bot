@@ -2,7 +2,7 @@ name: Daily Tech News
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0,30 6-20 * * *'    # هر نیم ساعت از ۱۰ صبح تا ۲۳ شب (به وقت UTC)
   workflow_dispatch:
 
 jobs:
