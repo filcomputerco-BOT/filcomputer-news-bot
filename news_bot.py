@@ -18,46 +18,27 @@ RSS_FEEDS = [
 ]
 
 def smart_translate(text):
-    if not text or len(text.strip()) < 10:
+    if not text or len(text.strip()) < 8:
         return text
     try:
         translator = GoogleTranslator(source='en', target='fa')
         translated = translator.translate(text)
         
-        # اصلاحات خیلی قوی برای اخبار سخت‌افزار و کامپیوتر
         corrections = {
-            "پردازنده": "CPU",
-            "کارت گرافیک": "GPU",
-            "واحد پردازش گرافیکی": "GPU",
-            "لپ تاپ": "لپ‌تاپ",
-            "مادربرد": "مادربورد",
-            "رم": "RAM",
-            "حافظه دسترسی تصادفی": "RAM",
-            "اس اس دی": "SSD",
-            "هارد": "HDD",
-            "هارد دیسک": "HDD",
-            "ویندوز": "Windows",
-            "لینوکس": "Linux",
-            "اینتل": "Intel",
-            "ای ام دی": "AMD",
-            "انویدیا": "NVIDIA",
-            "کیوای": "Qualcomm",
-            "اسنپدراگون": "Snapdragon",
-            "رایزن": "Ryzen",
-            "کور": "Core",
-            "آی": "i",
-            "نسل": "Gen",
+            "پردازنده": "CPU", "کارت گرافیک": "GPU", "واحد پردازش گرافیکی": "GPU",
+            "لپ تاپ": "لپ‌تاپ", "مادربرد": "مادربورد", "رم": "RAM",
+            "اس اس دی": "SSD", "هارد": "HDD", "هارد دیسک": "HDD",
+            "ویندوز": "Windows", "لینوکس": "Linux", "اینتل": "Intel",
+            "ای ام دی": "AMD", "انویدیا": "NVIDIA", "رایزن": "Ryzen",
+            "کور": "Core", "نسل": "Gen", "کیوای": "Qualcomm",
         }
         
         for wrong, correct in corrections.items():
             translated = translated.replace(wrong, correct)
         
-        # اصلاحات جمله‌ای رایج
         translated = translated.replace(" .", ".").replace(" ،", "،").replace(" ؟", "؟")
-        
         return translated.strip()
-    except Exception as e:
-        print("خطا در ترجمه:", e)
+    except:
         return text
 
 # ================== اجرا ==================
@@ -66,16 +47,25 @@ if os.path.exists("seen_posts.txt"):
     with open("seen_posts.txt") as f:
         seen = set(line.strip() for line in f)
 
+posted_count = 0
+max_posts_per_run = 3   # حداکثر ۳ پست در هر اجرا
+
 for feed_url in RSS_FEEDS:
+    if posted_count >= max_posts_per_run:
+        break
+        
     feed = feedparser.parse(feed_url)
-    for entry in feed.entries[:5]:
+    for entry in feed.entries[:8]:   # از هر فید بیشتر چک کن
+        if posted_count >= max_posts_per_run:
+            break
+            
         post_id = hashlib.md5(entry.link.encode()).hexdigest()
         if post_id in seen:
             continue
 
         try:
             title_fa = smart_translate(entry.title)
-            summary_en = entry.get('summary', entry.get('description', ''))[:550]
+            summary_en = entry.get('summary', entry.get('description', ''))[:500]
             summary_fa = smart_translate(summary_en)
 
             image = None
@@ -99,9 +89,10 @@ for feed_url in RSS_FEEDS:
             with open("seen_posts.txt", "a") as f:
                 f.write(post_id + "\n")
             
-            time.sleep(3)
+            posted_count += 1
+            time.sleep(4)
             
         except:
             continue
 
-print("✅ اخبار ارسال شد!")
+print(f"✅ {posted_count} خبر ارسال شد!")
