@@ -3,12 +3,10 @@ import requests
 import hashlib
 import os
 import time
+from deep_translator import GoogleTranslator
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHANNEL_ID = "@FILCOMPUTERNEWS"
-
-# LibreTranslate سرور عمومی (رایگان)
-LT_URL = "https://libretranslate.de/translate"   # یا https://libretranslate.com اگر اولی کار نکرد
 
 RSS_FEEDS = [
     "https://www.tomshardware.com/feeds/rss2/all.xml",
@@ -19,23 +17,47 @@ RSS_FEEDS = [
     "https://www.anandtech.com/rss/",
 ]
 
-def libre_translate(text):
-    if not text or len(text.strip()) < 5:
+def smart_translate(text):
+    if not text or len(text.strip()) < 10:
         return text
     try:
-        payload = {
-            "q": text,
-            "source": "en",
-            "target": "fa",
-            "format": "text"
+        translator = GoogleTranslator(source='en', target='fa')
+        translated = translator.translate(text)
+        
+        # اصلاحات خیلی قوی برای اخبار سخت‌افزار و کامپیوتر
+        corrections = {
+            "پردازنده": "CPU",
+            "کارت گرافیک": "GPU",
+            "واحد پردازش گرافیکی": "GPU",
+            "لپ تاپ": "لپ‌تاپ",
+            "مادربرد": "مادربورد",
+            "رم": "RAM",
+            "حافظه دسترسی تصادفی": "RAM",
+            "اس اس دی": "SSD",
+            "هارد": "HDD",
+            "هارد دیسک": "HDD",
+            "ویندوز": "Windows",
+            "لینوکس": "Linux",
+            "اینتل": "Intel",
+            "ای ام دی": "AMD",
+            "انویدیا": "NVIDIA",
+            "کیوای": "Qualcomm",
+            "اسنپدراگون": "Snapdragon",
+            "رایزن": "Ryzen",
+            "کور": "Core",
+            "آی": "i",
+            "نسل": "Gen",
         }
-        response = requests.post(LT_URL, json=payload, timeout=15)
-        if response.status_code == 200:
-            return response.json().get("translatedText", text)
-        else:
-            print("LibreTranslate Error:", response.text)
-            return text
-    except:
+        
+        for wrong, correct in corrections.items():
+            translated = translated.replace(wrong, correct)
+        
+        # اصلاحات جمله‌ای رایج
+        translated = translated.replace(" .", ".").replace(" ،", "،").replace(" ؟", "؟")
+        
+        return translated.strip()
+    except Exception as e:
+        print("خطا در ترجمه:", e)
         return text
 
 # ================== اجرا ==================
@@ -46,17 +68,16 @@ if os.path.exists("seen_posts.txt"):
 
 for feed_url in RSS_FEEDS:
     feed = feedparser.parse(feed_url)
-    for entry in feed.entries[:5]:   # حداکثر ۵ خبر از هر منبع
+    for entry in feed.entries[:5]:
         post_id = hashlib.md5(entry.link.encode()).hexdigest()
         if post_id in seen:
             continue
 
         try:
-            title_fa = libre_translate(entry.title)
-            summary_en = entry.get('summary', entry.get('description', ''))[:600]
-            summary_fa = libre_translate(summary_en)
+            title_fa = smart_translate(entry.title)
+            summary_en = entry.get('summary', entry.get('description', ''))[:550]
+            summary_fa = smart_translate(summary_en)
 
-            # پیدا کردن عکس
             image = None
             if hasattr(entry, 'media_content') and entry.media_content:
                 image = entry.media_content[0]['url']
@@ -78,9 +99,9 @@ for feed_url in RSS_FEEDS:
             with open("seen_posts.txt", "a") as f:
                 f.write(post_id + "\n")
             
-            time.sleep(4)
+            time.sleep(3)
             
         except:
             continue
 
-print("✅ اخبار با LibreTranslate ارسال شد!")
+print("✅ اخبار ارسال شد!")
