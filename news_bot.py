@@ -17,26 +17,54 @@ RSS_FEEDS = [
     "https://www.anandtech.com/rss/",
 ]
 
-def smart_translate(text):
+def ultra_smart_translate(text):
     if not text or len(text.strip()) < 8:
         return text
     try:
         translator = GoogleTranslator(source='en', target='fa')
         translated = translator.translate(text)
         
+        # اصلاحات خیلی گسترده برای اخبار سخت‌افزار و نرم‌افزار
         corrections = {
-            "پردازنده": "CPU", "کارت گرافیک": "GPU", "واحد پردازش گرافیکی": "GPU",
-            "لپ تاپ": "لپ‌تاپ", "مادربرد": "مادربورد", "رم": "RAM",
-            "اس اس دی": "SSD", "هارد": "HDD", "هارد دیسک": "HDD",
-            "ویندوز": "Windows", "لینوکس": "Linux", "اینتل": "Intel",
-            "ای ام دی": "AMD", "انویدیا": "NVIDIA", "رایزن": "Ryzen",
-            "کور": "Core", "نسل": "Gen", "کیوای": "Qualcomm",
+            "پردازنده": "CPU",
+            "واحد پردازش مرکزی": "CPU",
+            "کارت گرافیک": "GPU",
+            "واحد پردازش گرافیکی": "GPU",
+            "لپ تاپ": "لپ‌تاپ",
+            "مادربرد": "مادربورد",
+            "رم": "RAM",
+            "حافظه رم": "RAM",
+            "اس اس دی": "SSD",
+            "هارد": "HDD",
+            "هارد دیسک": "HDD",
+            "ویندوز": "Windows",
+            "لینوکس": "Linux",
+            "اینتل": "Intel",
+            "ای ام دی": "AMD",
+            "انویدیا": "NVIDIA",
+            "رایزن": "Ryzen",
+            "کور آی": "Core i",
+            "نسل": "نسل",
+            "کیوای": "Qualcomm",
+            "اسنپدراگون": "Snapdragon",
+            "آیفون": "iPhone",
+            "مک بوک": "MacBook",
+            "اپل": "Apple",
+            "مایکروسافت": "Microsoft",
         }
         
         for wrong, correct in corrections.items():
             translated = translated.replace(wrong, correct)
         
-        translated = translated.replace(" .", ".").replace(" ،", "،").replace(" ؟", "؟")
+        # اصلاحات نگارشی فارسی
+        translated = (translated.replace(" .", ".").replace(" ،", "،")
+                     .replace(" ؟", "؟").replace(" !", "!")
+                     .replace("  ", " "))
+        
+        # اگر عنوان خیلی طولانی بود کوتاه کن
+        if len(translated) > 120 and "title" in text.lower():
+            translated = translated[:115] + "..."
+            
         return translated.strip()
     except:
         return text
@@ -48,25 +76,23 @@ if os.path.exists("seen_posts.txt"):
         seen = set(line.strip() for line in f)
 
 posted_count = 0
-max_posts_per_run = 3   # حداکثر ۳ پست در هر اجرا
+max_posts_per_run = 2   # فقط ۲ پست در هر اجرا (برای جلوگیری از اسپم)
 
 for feed_url in RSS_FEEDS:
     if posted_count >= max_posts_per_run:
         break
-        
     feed = feedparser.parse(feed_url)
-    for entry in feed.entries[:8]:   # از هر فید بیشتر چک کن
+    for entry in feed.entries[:10]:
         if posted_count >= max_posts_per_run:
             break
-            
         post_id = hashlib.md5(entry.link.encode()).hexdigest()
         if post_id in seen:
             continue
 
         try:
-            title_fa = smart_translate(entry.title)
-            summary_en = entry.get('summary', entry.get('description', ''))[:500]
-            summary_fa = smart_translate(summary_en)
+            title_fa = ultra_smart_translate(entry.title)
+            summary_en = entry.get('summary', entry.get('description', ''))[:480]
+            summary_fa = ultra_smart_translate(summary_en)
 
             image = None
             if hasattr(entry, 'media_content') and entry.media_content:
@@ -83,16 +109,4 @@ for feed_url in RSS_FEEDS:
                 url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
                 data = {'chat_id': CHANNEL_ID, 'text': text, 'parse_mode': 'Markdown'}
 
-            requests.post(url, data=data)
-            
-            seen.add(post_id)
-            with open("seen_posts.txt", "a") as f:
-                f.write(post_id + "\n")
-            
-            posted_count += 1
-            time.sleep(4)
-            
-        except:
-            continue
-
-print(f"✅ {posted_count} خبر ارسال شد!")
+            requests.post(url
