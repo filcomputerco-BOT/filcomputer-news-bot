@@ -1,8 +1,4 @@
-import feedparser
-import requests
-import hashlib
-import os
-import time
+im
 from deep_translator import GoogleTranslator
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
