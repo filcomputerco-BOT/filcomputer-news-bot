@@ -109,4 +109,16 @@ for feed_url in RSS_FEEDS:
                 url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
                 data = {'chat_id': CHANNEL_ID, 'text': text, 'parse_mode': 'Markdown'}
 
-            requests.post(url
+            requests.post(url, data=data)
+            
+            seen.add(post_id)
+            with open("seen_posts.txt", "a") as f:
+                f.write(post_id + "\n")
+            
+            posted_count += 1
+            time.sleep(5)
+            
+        except:
+            continue
+
+print(f"✅ {posted_count} خبر ارسال شد!")
